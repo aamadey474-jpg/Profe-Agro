@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profesorado en Agronomía | Diálogo con un egresado</title>
+<style>
+:root{--ink:#26311f;--paper:#f3ecd9;--leaf:#3e6b3a;--clay:#b5532f;--line:#d8cca8}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:Georgia,"Times New Roman",serif;color:var(--ink);background:radial-gradient(ellipse at 30% 40%,#e9dfbf,#c9bd91 70%);display:grid;grid-template-columns:1fr 420px;overflow:hidden}
+#stage{position:relative;min-height:0}
+canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+#hint{position:absolute;left:16px;bottom:12px;font:13px system-ui,sans-serif;opacity:.7}
+aside{background:var(--paper);border-left:2px solid var(--line);padding:22px 24px;overflow:auto;display:flex;flex-direction:column;gap:14px}
+h1{font-size:22px;margin:0;line-height:1.2}
+.sub{font:13px system-ui,sans-serif;opacity:.75;margin:0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+button{font:600 14px system-ui,sans-serif;border:1.5px solid var(--leaf);background:transparent;color:var(--leaf);padding:9px 13px;border-radius:8px;cursor:pointer}
+button:hover{background:#e3e8cf}
+button.on,button.main{background:var(--leaf);color:#fff}
+button.warn{border-color:var(--clay);color:var(--clay)}
+#card{border:1px solid var(--line);background:#fbf7ea;border-radius:10px;padding:14px 16px;font-size:15px;line-height:1.5}
+#card h2{font-size:17px;margin:0 0 4px}
+#card .p{font-style:italic;margin:0 0 8px}
+#card ul{margin:0;padding-left:18px}
+#map{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fbf7ea}
+#map iframe{display:block;width:100%;height:240px;border:0}
+#map a{display:block;padding:10px 14px;font:600 14px system-ui,sans-serif;color:var(--leaf)}
+#status{font:13px system-ui,sans-serif;min-height:18px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:820px){
+ body{grid-template-columns:1fr;grid-template-rows:46vh 1fr}
+ aside{border-left:0;border-top:2px solid var(--line)}
+}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas><div id="hint">Arrastrá para rodearlo</div></div>
+<aside>
+ <div>
+  <h1>Profesorado en Agronomía</h1>
+  <p class="sub">EFA Fortaleza Campesina 141 · General San Martín, Chaco</p>
+ </div>
+ <div id="card"></div>
+ <div id="map">
+  <iframe title="Ubicación de la EFA Fortaleza Campesina 141" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+   src="https://www.google.com/maps?q=EFA+Fortaleza+Campesina+141,+General+San+Mart%C3%ADn,+Chaco,+Argentina&amp;hl=es&amp;z=14&amp;output=embed"></iframe>
+  <a href="https://maps.app.goo.gl/tDvSLgHSQMsL1LXVA" target="_blank" rel="noopener">Cómo llegar: abrir en Google Maps →</a>
+ </div>
+ <div class="row">
+  <button class="main" id="talk">Hablar con el egresado</button>
+ </div>
+ <div id="status"></div>
+ <p class="sub">Humano digital creado con IA. Cuenta la experiencia de un egresado; el plan de estudios sigue la Resolución 1978/2021 del Chaco. Los datos oficiales (inscripción, horarios, carga horaria) se confirman en la institución.</p>
+</aside>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script type="module">
+const AGENT_ID = new URLSearchParams(location.search).get('agente') || 'agent_3901m50rmeb2eywtkcbjrxrh0xmt';
+
+/* ---------- Contenido por año ---------- */
+const YEARS = {
+ 1:{n:'Primer año',p:'Prácticas en organizaciones y asociaciones civiles: el primer contacto es con el territorio y la comunidad.',
+    m:['Pedagogía','Alfabetización Académica','Didáctica General','Historia del Desarrollo Rural y Agrario Argentino','Matemática Aplicada al Agro','Principios Básicos de Agroecología','Bases Físico Químicas de la Producción Agropecuaria','Bases Biológicas de la Producción Agropecuaria','Práctica Docente I']},
+ 2:{n:'Segundo año',p:'Prácticas en una EFA: se observan clases, se hace ayudantía de permanencia y se ayuda en las actividades institucionales.',
+    m:['Psicología Educacional','Filosofía','TIC en Educación','Cultura y Lengua Originaria','Industrias Agrarias','Geografía Física Aplicada al Agro','Producción Vegetal I: Cultivos Anuales','Producción Animal I: Granja y Ganado Menor','Sujetos de la Educación Secundaria','Práctica Docente II']},
+ 3:{n:'Tercer año',p:'Prácticas en la EFA con una carga de clases, en nivel básico y orientado, más permanencia y actividades institucionales.',
+    m:['Sociología de la Educación','Historia y Política de la Educación Latinoamericana, Argentina y Chaqueña','Didáctica Específica: Alternancia Educativa','Economía Social Agraria','Producción Vegetal II: Cultivos Perennes','Producción Animal II: Ovinos, Caprinos y Bovinos','Práctica Docente III']},
+ 4:{n:'Cuarto año',p:'Pre-residencia en la EFA que elige el docente, y residencia con más carga horaria, permanencia a cargo solo y eventos educativos; en la residencia elegís la EFA.',
+    m:['Formación en Derechos Humanos, Ética y Ciudadanía','Administración y Gestión de Empresas Agropecuarias','Manejo de Agroecosistemas','Maquinarias, Equipos, Construcciones e Instalaciones Rurales','Seminario de Animación Rural','Residencia']}
+};
+const SCRIPT = {
+ 1:'En primer año todavía no das clases: hacés tus prácticas en organizaciones y asociaciones civiles, conociendo el territorio. Cursás Pedagogía, Didáctica General, Agroecología y las bases físicas y biológicas de la producción.',
+ 2:'En segundo año las prácticas pasan a una EFA. Observás clases, hacés ayudantía de permanencia y ayudás en todas las actividades de la escuela. Se suman Producción Vegetal I y Producción Animal I.',
+ 3:'En tercer año empezás a dar clases de verdad, en el nivel básico y en el orientado, además de la permanencia. Cursás Alternancia Educativa, cultivos perennes y producción de ovinos, caprinos y bovinos.',
+ 4:'Cuarto año tiene dos etapas. En la pre-residencia vas a la EFA que elige el docente. En la residencia tenés más carga horaria, hacés la permanencia solo, y ahí sí elegís la EFA donde querés ir.'
+};
+const $=id=>document.getElementById(id);
+$('card').innerHTML=Object.values(YEARS).map(d=>`<h2>${d.n}</h2><p class="p">${d.p}</p><ul>${d.m.map(x=>`<li>${x}</li>`).join('')}</ul>`).join('<hr style="border:0;border-top:1px solid var(--line);margin:14px 0">');
+
+/* ---------- Escena 3D ---------- */
+const canvas=$('c'), stage=$('stage');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(32,1,.1,50); camera.position.set(0,1.25,6.2); camera.lookAt(0,1.05,0);
+scene.add(new THREE.HemisphereLight(0xfff1d0,0x5a4a30,.9));
+const sun=new THREE.DirectionalLight(0xffe2b0,1.6); sun.position.set(-3,4,4); scene.add(sun);
+const M=(c,r=.8)=>new THREE.MeshStandardMaterial({color:c,roughness:r});
+const rig=new THREE.Group(); scene.add(rig);
+const mesh=(g,m,x=0,y=0,z=0,p=rig)=>{const o=new THREE.Mesh(g,m);o.position.set(x,y,z);p.add(o);return o};
+const skin=M(0xc68a5e,.7);
+// cuerpo: camisa de trabajo verde con cuello
+mesh(new THREE.CylinderGeometry(.72,.92,1.5,32),M(0x3e6b3a),0,.35,0);
+mesh(new THREE.SphereGeometry(.34,24,12),M(0x2f5430),-.7,.98,0).scale.set(1.2,.7,1);
+mesh(new THREE.SphereGeometry(.34,24,12),M(0x2f5430),.7,.98,0).scale.set(1.2,.7,1);
+mesh(new THREE.CylinderGeometry(.2,.24,.3,20),skin,0,1.2,0);
+mesh(new THREE.TorusGeometry(.26,.07,10,24),M(0x2f5430),0,1.1,0).rotation.x=Math.PI/2;
+// cabeza
+const head=new THREE.Group(); head.position.set(0,1.62,0); rig.add(head);
+const face=mesh(new THREE.SphereGeometry(.5,40,32),skin,0,0,0,head); face.scale.set(.88,1.08,.95);
+mesh(new THREE.SphereGeometry(.09,16,12),skin,-.44,-.02,0,head).scale.set(.5,1,.8);
+mesh(new THREE.SphereGeometry(.09,16,12),skin,.44,-.02,0,head).scale.set(.5,1,.8);
+mesh(new THREE.ConeGeometry(.07,.2,16),skin,0,-.06,.47,head).rotation.x=Math.PI/2.2;
+const eyes=[];
+[-.17,.17].forEach(x=>{
+ const w=mesh(new THREE.SphereGeometry(.07,16,12),M(0xf5efe0,.3),x,.12,.4,head); w.scale.set(1,.8,.6);
+ mesh(new THREE.SphereGeometry(.036,12,10),M(0x2a1a10,.2),x,.12,.44,head);
+ mesh(new THREE.BoxGeometry(.17,.03,.04),M(0x2b1c12),x,.24,.42,head);
+ eyes.push(w);
+});
+const mouth=mesh(new THREE.SphereGeometry(.09,20,12),M(0x5a1d1d,.5),0,-.25,.43,head); mouth.scale.set(1,.08,.4);
+const lip=mesh(new THREE.TorusGeometry(.09,.016,8,24),M(0xa05048,.6),0,-.25,.45,head); lip.scale.set(1,.55,1);
+// bigote suave y sombrero de paja
+mesh(new THREE.BoxGeometry(.2,.035,.05),M(0x2b1c12),0,-.17,.46,head);
+mesh(new THREE.CylinderGeometry(.62,.66,.04,40),M(0xcfae62,.9),0,.38,0,head);
+mesh(new THREE.CylinderGeometry(.36,.43,.3,32),M(0xd9ba70,.9),0,.55,0,head);
+mesh(new THREE.CylinderGeometry(.44,.44,.07,32),M(0x7a3b22,.8),0,.42,0,head);
+
+function resize(){
+ const w=stage.clientWidth,h=stage.clientHeight; renderer.setSize(w,h,false);
+ camera.aspect=w/h; camera.updateProjectionMatrix();
+ camera.position.z = w/h<.9 ? 7.6 : 6.2;
+}
+addEventListener('resize',resize); resize();
+
+/* ---------- Interacción: giro de 360° y mirada ---------- */
+let yaw=0,yawT=0,drag=false,lx=0,px=0,py=0;
+canvas.onpointerdown=e=>{drag=true;lx=e.clientX;canvas.setPointerCapture(e.pointerId);canvas.style.cursor='grabbing'};
+canvas.onpointerup=()=>{drag=false;canvas.style.cursor='grab'};
+canvas.onpointermove=e=>{
+ if(drag){yawT+=(e.clientX-lx)*.012;lx=e.clientX}
+ const r=canvas.getBoundingClientRect(); px=(e.clientX-r.left)/r.width*2-1; py=(e.clientY-r.top)/r.height*2-1;
+};
+addEventListener('keydown',e=>{if(e.key==='ArrowLeft')yawT-=.3;if(e.key==='ArrowRight')yawT+=.3});
+
+/* ---------- Boca y animación ---------- */
+let open=0,speaking=false,conv=null,blink=0,nextBlink=2;
+const clock=new THREE.Clock();
+function loop(){
+ const dt=clock.getDelta(),t=clock.elapsedTime;
+ yaw+=(yawT-yaw)*Math.min(1,dt*6); rig.rotation.y=yaw;
+ const front=Math.cos(yaw)>0.2;
+ rig.position.y=Math.sin(t*1.6)*.012;
+ head.rotation.y+=(((front?px:0)*.35)-head.rotation.y)*Math.min(1,dt*5);
+ head.rotation.x+=(((front?py:0)*.2+(speaking?Math.sin(t*3)*.04:0))-head.rotation.x)*Math.min(1,dt*5);
+ let target=0;
+ if(conv&&speaking){target=Math.min(1,(conv.getOutputVolume?.()||0)*2.6)}
+  open+=(target-open)*Math.min(1,dt*18);
+ mouth.scale.y=.08+open*.95; lip.scale.y=.55+open*1.1; lip.position.y=-.25-open*.02;
+ nextBlink-=dt; if(nextBlink<0){blink=.14;nextBlink=2+Math.random()*3}
+ blink-=dt; const lid=blink>0?.1:.8; eyes.forEach(e=>e.scale.y+=(lid-e.scale.y)*.5);
+ renderer.render(scene,camera); requestAnimationFrame(loop);
+}
+loop();
+
+/* ---------- Agente de ElevenLabs ---------- */
+$('talk').onclick=async()=>{
+ const b=$('talk'),s=$('status');
+ if(conv){await conv.endSession();return}
+ b.disabled=true; s.textContent='Pidiendo permiso del micrófono…';
+ try{
+  await navigator.mediaDevices.getUserMedia({audio:true});
+  s.textContent='Conectando…';
+  const {Conversation}=await import('https://cdn.jsdelivr.net/npm/@elevenlabs/client@1.26.0/+esm');
+  conv=await Conversation.startSession({
+   agentId:AGENT_ID, connectionType:'websocket',
+   onConnect:()=>{b.textContent='Terminar conversación';b.classList.remove('main');b.classList.add('warn');s.textContent='Conectado. Hablale al egresado.'},
+   onDisconnect:()=>{conv=null;speaking=false;b.textContent='Hablar con el egresado';b.classList.add('main');b.classList.remove('warn');s.textContent='Conversación terminada.'},
+   onModeChange:({mode})=>{speaking=mode==='speaking';s.textContent=speaking?'Hablando…':'Escuchando…'},
+   onError:m=>{s.textContent='Error: '+(m?.message||m)}
+  });
+ }catch(e){
+  conv=null; s.textContent='No se pudo conectar ('+(e?.message||e)+').';
+ }
+ b.disabled=false;
+};
+</script>
+</body>
+</html>
